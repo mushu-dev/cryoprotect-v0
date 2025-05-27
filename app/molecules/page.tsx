@@ -8,7 +8,6 @@ import { Badge } from "@/components/ui/badge"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Slider } from "@/components/ui/slider"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import {
   MicroscopeIcon as Molecule,
   Plus,
@@ -32,111 +31,24 @@ import {
   Beaker,
   Activity,
   Atom,
-  FlaskConical,
-  AlertTriangle,
-  CheckCircle,
-  Info,
-  BookOpen,
-  Combine,
-  RotateCcw,
-  ZoomIn,
-  Settings,
 } from "lucide-react"
-import { Canvas } from "@react-three/fiber"
-import { OrbitControls } from "@react-three/drei"
-import * as THREE from "three"
-import {
-  Radar,
-  RadarChart,
-  PolarGrid,
-  PolarAngleAxis,
-  PolarRadiusAxis,
-  ResponsiveContainer,
-  XAxis,
-  YAxis,
-  CartesianGrid,
-  Tooltip,
-  AreaChart,
-  Area,
-} from "recharts"
-import type { MoleculeFilters } from "@/lib/api/molecules"
+import { searchMolecules, getMoleculeStats, type MoleculeFilters } from "@/lib/api/molecules"
 import type { Molecule as MoleculeType } from "@/lib/supabase"
 import Link from "next/link"
 
-// 3D Molecule Component for Deep Dive
-function Molecule3D({ moleculeData }: { moleculeData: any }) {
-  const atoms = [
-    { position: [0, 0, 0] as [number, number, number], element: "C", color: "#404040" },
-    { position: [1.5, 0, 0] as [number, number, number], element: "O", color: "#ff0000" },
-    { position: [-1.5, 0, 0] as [number, number, number], element: "N", color: "#0000ff" },
-    { position: [0, 1.5, 0] as [number, number, number], element: "H", color: "#ffffff", radius: 0.3 },
-    { position: [0, -1.5, 0] as [number, number, number], element: "H", color: "#ffffff", radius: 0.3 },
-  ]
-
-  const bonds = [
-    { start: [0, 0, 0] as [number, number, number], end: [1.5, 0, 0] as [number, number, number] },
-    { start: [0, 0, 0] as [number, number, number], end: [-1.5, 0, 0] as [number, number, number] },
-    { start: [0, 0, 0] as [number, number, number], end: [0, 1.5, 0] as [number, number, number] },
-    { start: [0, 0, 0] as [number, number, number], end: [0, -1.5, 0] as [number, number, number] },
-  ]
-
-  return (
-    <group>
-      {atoms.map((atom, index) => (
-        <mesh key={index} position={atom.position}>
-          <sphereGeometry args={[atom.radius || 0.5, 32, 32]} />
-          <meshStandardMaterial color={atom.color} />
-        </mesh>
-      ))}
-      {bonds.map((bond, index) => {
-        const startVec = new THREE.Vector3(...bond.start)
-        const endVec = new THREE.Vector3(...bond.end)
-        const direction = new THREE.Vector3().subVectors(endVec, startVec)
-        const length = direction.length()
-        const center = new THREE.Vector3().addVectors(startVec, endVec).multiplyScalar(0.5)
-
-        return (
-          <mesh key={index} position={center.toArray()}>
-            <cylinderGeometry args={[0.05, 0.05, length, 8]} />
-            <meshStandardMaterial color="#666666" />
-          </mesh>
-        )
-      })}
-    </group>
-  )
-}
-
-// Enhanced molecule card with ALL features
+// Enhanced molecule card for the new design
 function EnhancedMoleculeCard({
   molecule,
   onAnalyze,
-  onExplore,
-  onAddToProtocol,
   viewMode,
-  isSelected,
-  onSelect,
-  similarityScore,
-  aiInsight,
 }: {
   molecule: MoleculeType
   onAnalyze?: (molecule: MoleculeType) => void
-  onExplore?: (molecule: MoleculeType) => void
-  onAddToProtocol?: (molecule: MoleculeType) => void
   viewMode: "grid" | "compact" | "detailed"
-  isSelected?: boolean
-  onSelect?: (molecule: MoleculeType) => void
-  similarityScore?: number
-  aiInsight?: string
 }) {
-  const [isHovered, setIsHovered] = useState(false)
-
-  // Generate realistic scores
-  const efficacyScore = Math.floor(Math.random() * 40) + 60
-  const safetyScore = Math.floor(Math.random() * 30) + 70
-  const noveltyScore = Math.floor(Math.random() * 50) + 50
-  const confidenceScore = Math.floor(Math.random() * 20) + 80
-
-  const overallScore = Math.round((efficacyScore + safetyScore + noveltyScore) / 3)
+  const efficacyScore = Math.floor(Math.random() * 40) + 60 // 60-100
+  const safetyScore = Math.floor(Math.random() * 30) + 70 // 70-100
+  const noveltyScore = Math.floor(Math.random() * 50) + 50 // 50-100
 
   const getScoreColor = (score: number) => {
     if (score >= 85) return "text-emerald-600"
@@ -171,12 +83,7 @@ function EnhancedMoleculeCard({
             <div className={`text-lg font-bold ${getScoreColor(safetyScore)}`}>{safetyScore}</div>
             <div className="text-xs text-gray-500">Safety</div>
           </div>
-          <Button
-            variant="ghost"
-            size="sm"
-            className="opacity-0 group-hover:opacity-100 transition-opacity"
-            onClick={() => onExplore?.(molecule)}
-          >
+          <Button variant="ghost" size="sm" className="opacity-0 group-hover:opacity-100 transition-opacity">
             <ArrowRight className="w-4 h-4" />
           </Button>
         </div>
@@ -266,7 +173,7 @@ function EnhancedMoleculeCard({
               <Beaker className="w-4 h-4 mr-2" />
               Deep Analysis
             </Button>
-            <Button variant="outline" className="flex-1" onClick={() => onExplore?.(molecule)}>
+            <Button variant="outline" className="flex-1">
               <Atom className="w-4 h-4 mr-2" />
               3D Structure
             </Button>
@@ -276,21 +183,9 @@ function EnhancedMoleculeCard({
     )
   }
 
-  // Default grid view with enhanced features
+  // Default grid view
   return (
-    <Card
-      className={`hover:shadow-lg transition-all duration-200 cursor-pointer border-2 hover:border-blue-200 group ${isSelected ? "ring-2 ring-blue-500 border-blue-300" : ""} ${similarityScore ? "relative" : ""}`}
-      onMouseEnter={() => setIsHovered(true)}
-      onMouseLeave={() => setIsHovered(false)}
-      onClick={() => onSelect?.(molecule)}
-    >
-      {/* Similarity indicator */}
-      {similarityScore && (
-        <div className="absolute -top-2 -right-2 bg-blue-500 text-white text-xs px-2 py-1 rounded-full z-10">
-          {similarityScore}% similar
-        </div>
-      )}
-
+    <Card className="hover:shadow-lg transition-all duration-200 cursor-pointer border-2 hover:border-blue-200 group">
       <CardContent className="p-5">
         <div className="flex items-start justify-between mb-3">
           <div className="flex-1 min-w-0">
@@ -298,9 +193,8 @@ function EnhancedMoleculeCard({
             <p className="text-gray-600 font-mono text-sm">{molecule.formula}</p>
           </div>
           <div className="ml-3">
-            <div className={`text-2xl font-bold ${getScoreColor(overallScore)}`}>{overallScore}</div>
+            <div className={`text-2xl font-bold ${getScoreColor(efficacyScore)}`}>{efficacyScore}</div>
             <div className="text-xs text-gray-500 text-center">Score</div>
-            <div className="text-xs text-gray-400 text-center">±{100 - confidenceScore}%</div>
           </div>
         </div>
 
@@ -315,23 +209,6 @@ function EnhancedMoleculeCard({
           </div>
         </div>
 
-        {/* AI Insight */}
-        {(aiInsight || isHovered) && (
-          <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 mb-3 transition-all duration-200">
-            <div className="flex items-start space-x-2">
-              <Brain className="w-4 h-4 text-blue-600 mt-0.5 flex-shrink-0" />
-              <p className="text-sm text-blue-800">
-                {aiInsight ||
-                  (efficacyScore > 80
-                    ? "🎯 High-priority candidate with excellent preservation potential"
-                    : efficacyScore > 65
-                      ? "⚡ Promising compound worth experimental validation"
-                      : "🔬 Interesting structure requiring optimization")}
-              </p>
-            </div>
-          </div>
-        )}
-
         <div className="flex space-x-1 mb-3">
           {molecule.pubchem_cid && (
             <Badge variant="outline" className="text-xs">
@@ -345,498 +222,12 @@ function EnhancedMoleculeCard({
           )}
         </div>
 
-        <div className="flex space-x-2">
-          <Button
-            variant="outline"
-            size="sm"
-            className="flex-1"
-            onClick={(e) => {
-              e.stopPropagation()
-              onExplore?.(molecule)
-            }}
-          >
-            <Eye className="w-4 h-4 mr-2" />
-            Explore
-          </Button>
-          <Button
-            size="sm"
-            className="flex-1"
-            onClick={(e) => {
-              e.stopPropagation()
-              onAddToProtocol?.(molecule)
-            }}
-          >
-            <Plus className="w-4 h-4 mr-2" />
-            Add to Protocol
-          </Button>
-        </div>
-
-        {/* Hover connections indicator */}
-        {isHovered && (
-          <div className="absolute inset-0 pointer-events-none">
-            <div className="absolute top-1/2 -right-2 w-4 h-0.5 bg-blue-400 opacity-60"></div>
-            <div className="absolute top-1/2 -left-2 w-4 h-0.5 bg-blue-400 opacity-60"></div>
-          </div>
-        )}
+        <Button variant="outline" className="w-full opacity-0 group-hover:opacity-100 transition-opacity">
+          <Eye className="w-4 h-4 mr-2" />
+          Explore
+        </Button>
       </CardContent>
     </Card>
-  )
-}
-
-// Deep Dive Modal Component with ALL features
-function MoleculeDeepDive({
-  molecule,
-  isOpen,
-  onClose,
-  onAddToProtocol,
-}: {
-  molecule: MoleculeType | null
-  isOpen: boolean
-  onClose: () => void
-  onAddToProtocol: (molecule: MoleculeType) => void
-}) {
-  const [activeTab, setActiveTab] = useState("overview")
-
-  if (!molecule) return null
-
-  // Generate comprehensive data
-  const efficacyScore = Math.floor(Math.random() * 40) + 60
-  const safetyScore = Math.floor(Math.random() * 30) + 70
-  const noveltyScore = Math.floor(Math.random() * 50) + 50
-  const confidenceScore = Math.floor(Math.random() * 20) + 80
-  const overallScore = Math.round((efficacyScore + safetyScore + noveltyScore) / 3)
-
-  // Spider chart data
-  const radarData = [
-    { property: "Ice Inhibition", value: efficacyScore, ideal: 85 },
-    { property: "Cell Viability", value: safetyScore, ideal: 90 },
-    { property: "Membrane Perm", value: Math.floor(Math.random() * 30) + 60, ideal: 75 },
-    { property: "Osmotic Stress", value: Math.floor(Math.random() * 40) + 50, ideal: 80 },
-    { property: "Stability", value: Math.floor(Math.random() * 35) + 65, ideal: 85 },
-    { property: "Solubility", value: Math.floor(Math.random() * 45) + 55, ideal: 80 },
-  ]
-
-  // Safety profile data
-  const safetyData = [
-    { concentration: 0, viability: 100, toxicity: 0 },
-    { concentration: 5, viability: 98, toxicity: 2 },
-    { concentration: 10, viability: 95, toxicity: 8 },
-    { concentration: 15, viability: 88, toxicity: 18 },
-    { concentration: 20, viability: 75, toxicity: 35 },
-    { concentration: 25, viability: 60, toxicity: 55 },
-    { concentration: 30, viability: 40, toxicity: 75 },
-  ]
-
-  return (
-    <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="max-w-7xl max-h-[95vh] overflow-y-auto">
-        <DialogHeader>
-          <div className="flex items-center justify-between">
-            <div className="flex items-center space-x-4">
-              <div className="w-16 h-16 bg-gradient-to-br from-blue-500 to-purple-600 rounded-xl flex items-center justify-center">
-                <Molecule className="w-8 h-8 text-white" />
-              </div>
-              <div>
-                <DialogTitle className="text-2xl">{molecule.name}</DialogTitle>
-                <DialogDescription className="text-lg font-mono">{molecule.formula}</DialogDescription>
-              </div>
-            </div>
-            <div className="flex items-center space-x-4">
-              <div className="text-center">
-                <div className="text-4xl font-bold text-blue-600">{overallScore}</div>
-                <div className="text-sm text-gray-500">Success Probability</div>
-                <div className="text-xs text-gray-400">±{100 - confidenceScore}% confidence</div>
-              </div>
-              <Button onClick={() => onAddToProtocol(molecule)} size="lg">
-                <Plus className="w-5 h-5 mr-2" />
-                Add to Protocol
-              </Button>
-            </div>
-          </div>
-        </DialogHeader>
-
-        {/* Hero Section */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
-          {/* 3D Molecule Viewer */}
-          <Card>
-            <CardContent className="p-6">
-              <div className="h-80 bg-gray-50 rounded-lg relative overflow-hidden">
-                <Canvas camera={{ position: [5, 5, 5], fov: 50 }}>
-                  <ambientLight intensity={0.6} />
-                  <directionalLight position={[10, 10, 5]} intensity={1} />
-                  <Molecule3D moleculeData={molecule} />
-                  <OrbitControls enablePan={true} enableZoom={true} enableRotate={true} />
-                </Canvas>
-
-                {/* 3D Controls */}
-                <div className="absolute top-4 right-4 space-y-2">
-                  <Button size="sm" variant="secondary">
-                    <RotateCcw className="w-4 h-4" />
-                  </Button>
-                  <Button size="sm" variant="secondary">
-                    <ZoomIn className="w-4 h-4" />
-                  </Button>
-                  <Button size="sm" variant="secondary">
-                    <Settings className="w-4 h-4" />
-                  </Button>
-                </div>
-
-                {/* Property overlay */}
-                <div className="absolute bottom-4 left-4 bg-white/90 backdrop-blur-sm rounded-lg p-3">
-                  <div className="text-sm font-medium mb-1">Interactive 3D Structure</div>
-                  <div className="text-xs text-gray-600">Drag to rotate • Scroll to zoom</div>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-
-          {/* Compare to Ideal */}
-          <Card>
-            <CardContent className="p-6">
-              <h3 className="text-lg font-semibold mb-4 flex items-center">
-                <Target className="w-5 h-5 mr-2 text-blue-600" />
-                Performance vs. Ideal Cryoprotectant
-              </h3>
-              <ResponsiveContainer width="100%" height={280}>
-                <RadarChart data={radarData}>
-                  <PolarGrid />
-                  <PolarAngleAxis dataKey="property" tick={{ fontSize: 12 }} />
-                  <PolarRadiusAxis angle={90} domain={[0, 100]} tick={false} />
-                  <Radar
-                    name="Current"
-                    dataKey="value"
-                    stroke="#3b82f6"
-                    fill="#3b82f6"
-                    fillOpacity={0.3}
-                    strokeWidth={2}
-                  />
-                  <Radar
-                    name="Ideal"
-                    dataKey="ideal"
-                    stroke="#10b981"
-                    fill="transparent"
-                    strokeWidth={2}
-                    strokeDasharray="5 5"
-                  />
-                  <Tooltip />
-                </RadarChart>
-              </ResponsiveContainer>
-            </CardContent>
-          </Card>
-        </div>
-
-        {/* Detailed Analysis Tabs */}
-        <Tabs value={activeTab} onValueChange={setActiveTab}>
-          <TabsList className="grid w-full grid-cols-4">
-            <TabsTrigger value="overview">Overview</TabsTrigger>
-            <TabsTrigger value="safety">Safety Profile</TabsTrigger>
-            <TabsTrigger value="protocol">Protocol Guide</TabsTrigger>
-            <TabsTrigger value="research">Research History</TabsTrigger>
-          </TabsList>
-
-          <TabsContent value="overview" className="space-y-6">
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-              {/* AI Assessment */}
-              <Card>
-                <CardContent className="p-6">
-                  <h3 className="text-lg font-semibold mb-4 flex items-center">
-                    <Brain className="w-5 h-5 mr-2 text-purple-600" />
-                    AI Assessment
-                  </h3>
-                  <div className="space-y-4">
-                    <div className="p-4 bg-green-50 border border-green-200 rounded-lg">
-                      <div className="flex items-center mb-2">
-                        <CheckCircle className="w-5 h-5 text-green-600 mr-2" />
-                        <span className="font-medium text-green-900">Why This Might Work</span>
-                      </div>
-                      <ul className="text-sm text-green-800 space-y-1">
-                        <li>• Optimal molecular weight for cellular penetration</li>
-                        <li>• Strong hydrogen bonding for ice crystal inhibition</li>
-                        <li>• Low osmotic stress at effective concentrations</li>
-                        <li>• Proven safety profile in similar applications</li>
-                      </ul>
-                    </div>
-
-                    <div className="p-4 bg-amber-50 border border-amber-200 rounded-lg">
-                      <div className="flex items-center mb-2">
-                        <AlertTriangle className="w-5 h-5 text-amber-600 mr-2" />
-                        <span className="font-medium text-amber-900">Potential Concerns</span>
-                      </div>
-                      <ul className="text-sm text-amber-800 space-y-1">
-                        <li>• Limited data on long-term storage effects</li>
-                        <li>• May require combination with other agents</li>
-                        <li>• Concentration-dependent toxicity at high levels</li>
-                      </ul>
-                    </div>
-
-                    <div className="p-4 bg-blue-50 border border-blue-200 rounded-lg">
-                      <div className="flex items-center mb-2">
-                        <Lightbulb className="w-5 h-5 text-blue-600 mr-2" />
-                        <span className="font-medium text-blue-900">AI Recommendation</span>
-                      </div>
-                      <p className="text-sm text-blue-800">
-                        Start with 10-15% concentration for initial trials. Consider combining with trehalose for
-                        enhanced protection. Monitor cell viability at 24h and 7-day timepoints.
-                      </p>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-
-              {/* Similar Molecules */}
-              <Card>
-                <CardContent className="p-6">
-                  <h3 className="text-lg font-semibold mb-4 flex items-center">
-                    <Layers className="w-5 h-5 mr-2 text-indigo-600" />
-                    Similar Molecules
-                  </h3>
-                  <div className="space-y-3">
-                    <div className="flex items-center justify-between p-3 border rounded-lg">
-                      <div>
-                        <div className="font-medium">Trehalose</div>
-                        <div className="text-sm text-gray-600">94% structural similarity</div>
-                      </div>
-                      <div className="flex items-center space-x-2">
-                        <Badge variant="default" className="bg-green-100 text-green-800">
-                          Success
-                        </Badge>
-                        <Button variant="ghost" size="sm">
-                          <Eye className="w-4 h-4" />
-                        </Button>
-                      </div>
-                    </div>
-
-                    <div className="flex items-center justify-between p-3 border rounded-lg">
-                      <div>
-                        <div className="font-medium">Sucrose</div>
-                        <div className="text-sm text-gray-600">87% structural similarity</div>
-                      </div>
-                      <div className="flex items-center space-x-2">
-                        <Badge variant="secondary" className="bg-yellow-100 text-yellow-800">
-                          Mixed
-                        </Badge>
-                        <Button variant="ghost" size="sm">
-                          <Eye className="w-4 h-4" />
-                        </Button>
-                      </div>
-                    </div>
-
-                    <div className="flex items-center justify-between p-3 border rounded-lg">
-                      <div>
-                        <div className="font-medium">Mannitol</div>
-                        <div className="text-sm text-gray-600">76% structural similarity</div>
-                      </div>
-                      <div className="flex items-center space-x-2">
-                        <Badge variant="destructive" className="bg-red-100 text-red-800">
-                          Failed
-                        </Badge>
-                        <Button variant="ghost" size="sm">
-                          <Eye className="w-4 h-4" />
-                        </Button>
-                      </div>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-            </div>
-          </TabsContent>
-
-          <TabsContent value="safety" className="space-y-6">
-            <Card>
-              <CardContent className="p-6">
-                <h3 className="text-lg font-semibold mb-4 flex items-center">
-                  <Shield className="w-5 h-5 mr-2 text-green-600" />
-                  Toxicity vs. Concentration Profile
-                </h3>
-                <ResponsiveContainer width="100%" height={300}>
-                  <AreaChart data={safetyData}>
-                    <CartesianGrid strokeDasharray="3 3" />
-                    <XAxis
-                      dataKey="concentration"
-                      label={{ value: "Concentration (%)", position: "insideBottom", offset: -5 }}
-                    />
-                    <YAxis label={{ value: "Cell Viability (%)", angle: -90, position: "insideLeft" }} />
-                    <Tooltip />
-                    <Area
-                      type="monotone"
-                      dataKey="viability"
-                      stroke="#10b981"
-                      fill="#10b981"
-                      fillOpacity={0.3}
-                      name="Cell Viability"
-                    />
-                    <Area
-                      type="monotone"
-                      dataKey="toxicity"
-                      stroke="#ef4444"
-                      fill="#ef4444"
-                      fillOpacity={0.3}
-                      name="Toxicity Risk"
-                    />
-                  </AreaChart>
-                </ResponsiveContainer>
-
-                <div className="mt-4 grid grid-cols-3 gap-4">
-                  <div className="text-center p-3 bg-green-50 rounded-lg">
-                    <div className="text-lg font-bold text-green-600">5-12%</div>
-                    <div className="text-sm text-green-700">Safe Zone</div>
-                  </div>
-                  <div className="text-center p-3 bg-yellow-50 rounded-lg">
-                    <div className="text-lg font-bold text-yellow-600">13-18%</div>
-                    <div className="text-sm text-yellow-700">Caution Zone</div>
-                  </div>
-                  <div className="text-center p-3 bg-red-50 rounded-lg">
-                    <div className="text-lg font-bold text-red-600">{">"} 19%</div>
-                    <div className="text-sm text-red-700">Toxic Zone</div>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          </TabsContent>
-
-          <TabsContent value="protocol" className="space-y-6">
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-              <Card>
-                <CardContent className="p-6">
-                  <h3 className="text-lg font-semibold mb-4 flex items-center">
-                    <FlaskConical className="w-5 h-5 mr-2 text-blue-600" />
-                    Recommended Protocol
-                  </h3>
-                  <div className="space-y-4">
-                    <div className="flex items-start space-x-3 p-3 border rounded-lg">
-                      <div className="w-6 h-6 bg-blue-500 text-white rounded-full flex items-center justify-center text-sm font-bold">
-                        1
-                      </div>
-                      <div>
-                        <div className="font-medium">Preparation</div>
-                        <div className="text-sm text-gray-600">Dissolve in PBS to 15% w/v concentration</div>
-                      </div>
-                    </div>
-
-                    <div className="flex items-start space-x-3 p-3 border rounded-lg">
-                      <div className="w-6 h-6 bg-blue-500 text-white rounded-full flex items-center justify-center text-sm font-bold">
-                        2
-                      </div>
-                      <div>
-                        <div className="font-medium">Cell Loading</div>
-                        <div className="text-sm text-gray-600">
-                          Incubate cells for 10-15 minutes at room temperature
-                        </div>
-                      </div>
-                    </div>
-
-                    <div className="flex items-start space-x-3 p-3 border rounded-lg">
-                      <div className="w-6 h-6 bg-blue-500 text-white rounded-full flex items-center justify-center text-sm font-bold">
-                        3
-                      </div>
-                      <div>
-                        <div className="font-medium">Cooling</div>
-                        <div className="text-sm text-gray-600">
-                          Cool at 1°C/min to -80°C, then transfer to liquid nitrogen
-                        </div>
-                      </div>
-                    </div>
-
-                    <div className="flex items-start space-x-3 p-3 border rounded-lg">
-                      <div className="w-6 h-6 bg-blue-500 text-white rounded-full flex items-center justify-center text-sm font-bold">
-                        4
-                      </div>
-                      <div>
-                        <div className="font-medium">Thawing</div>
-                        <div className="text-sm text-gray-600">Rapid thaw in 37°C water bath, dilute gradually</div>
-                      </div>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-
-              <Card>
-                <CardContent className="p-6">
-                  <h3 className="text-lg font-semibold mb-4 flex items-center">
-                    <Combine className="w-5 h-5 mr-2 text-purple-600" />
-                    Proven Combinations
-                  </h3>
-                  <div className="space-y-3">
-                    <div className="p-3 border rounded-lg">
-                      <div className="flex items-center justify-between mb-2">
-                        <div className="font-medium">+ Trehalose (5%)</div>
-                        <Badge variant="default" className="bg-green-100 text-green-800">
-                          92% success
-                        </Badge>
-                      </div>
-                      <div className="text-sm text-gray-600">Enhanced ice inhibition, reduced osmotic stress</div>
-                    </div>
-
-                    <div className="p-3 border rounded-lg">
-                      <div className="flex items-center justify-between mb-2">
-                        <div className="font-medium">+ DMSO (10%)</div>
-                        <Badge variant="secondary" className="bg-yellow-100 text-yellow-800">
-                          78% success
-                        </Badge>
-                      </div>
-                      <div className="text-sm text-gray-600">Improved membrane permeability, higher toxicity</div>
-                    </div>
-
-                    <div className="p-3 border rounded-lg">
-                      <div className="flex items-center justify-between mb-2">
-                        <div className="font-medium">+ Glycerol (8%)</div>
-                        <Badge variant="secondary" className="bg-blue-100 text-blue-800">
-                          85% success
-                        </Badge>
-                      </div>
-                      <div className="text-sm text-gray-600">Balanced protection, moderate penetration</div>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-            </div>
-          </TabsContent>
-
-          <TabsContent value="research" className="space-y-6">
-            <Card>
-              <CardContent className="p-6">
-                <h3 className="text-lg font-semibold mb-4 flex items-center">
-                  <BookOpen className="w-5 h-5 mr-2 text-indigo-600" />
-                  Research Timeline
-                </h3>
-                <div className="space-y-4">
-                  <div className="flex items-start space-x-4 p-4 border-l-4 border-green-500 bg-green-50">
-                    <CheckCircle className="w-5 h-5 text-green-600 mt-0.5" />
-                    <div>
-                      <div className="font-medium text-green-900">Successful Application - 2023</div>
-                      <div className="text-sm text-green-800">
-                        Dr. Chen et al. - 94% hepatocyte viability after 6 months storage
-                      </div>
-                      <div className="text-xs text-green-700 mt-1">Published in Cryobiology Journal</div>
-                    </div>
-                  </div>
-
-                  <div className="flex items-start space-x-4 p-4 border-l-4 border-yellow-500 bg-yellow-50">
-                    <AlertTriangle className="w-5 h-5 text-yellow-600 mt-0.5" />
-                    <div>
-                      <div className="font-medium text-yellow-900">Mixed Results - 2022</div>
-                      <div className="text-sm text-yellow-800">
-                        Rodriguez Lab - Variable outcomes with different cell lines
-                      </div>
-                      <div className="text-xs text-yellow-700 mt-1">Concentration optimization needed</div>
-                    </div>
-                  </div>
-
-                  <div className="flex items-start space-x-4 p-4 border-l-4 border-blue-500 bg-blue-50">
-                    <Info className="w-5 h-5 text-blue-600 mt-0.5" />
-                    <div>
-                      <div className="font-medium text-blue-900">First Discovery - 2021</div>
-                      <div className="text-sm text-blue-800">Initial screening identified as promising candidate</div>
-                      <div className="text-xs text-blue-700 mt-1">Computational modeling predicted high efficacy</div>
-                    </div>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          </TabsContent>
-        </Tabs>
-      </DialogContent>
-    </Dialog>
   )
 }
 
@@ -848,11 +239,6 @@ export default function MoleculesPage() {
   const [stats, setStats] = useState<any>(null)
   const [viewMode, setViewMode] = useState<"grid" | "compact" | "detailed">("grid")
   const [activeTab, setActiveTab] = useState("explore")
-
-  // Deep dive modal state
-  const [selectedMolecule, setSelectedMolecule] = useState<MoleculeType | null>(null)
-  const [isDeepDiveOpen, setIsDeepDiveOpen] = useState(false)
-  const [protocolMolecules, setProtocolMolecules] = useState<MoleculeType[]>([])
 
   const [searchQuery, setSearchQuery] = useState("")
   const [filters, setFilters] = useState<MoleculeFilters>({
@@ -868,58 +254,6 @@ export default function MoleculesPage() {
   const [noveltyRange, setNoveltyRange] = useState([0, 100])
   const [showFilters, setShowFilters] = useState(false)
 
-  // Mock data for demonstration
-  const mockMolecules: MoleculeType[] = [
-    {
-      id: "1",
-      name: "Trehalose",
-      formula: "C12H22O11",
-      smiles: "C([C@@H]1[C@@H]([C@@H]([C@H]([C@H](O1)O[C@@H]2[C@H]([C@@H]([C@@H]([C@H](O2)CO)O)O)O)O)O)O)O",
-      pubchem_cid: "7427",
-      created_at: new Date().toISOString(),
-    },
-    {
-      id: "2",
-      name: "DMSO",
-      formula: "C2H6OS",
-      smiles: "CS(=O)C",
-      pubchem_cid: "679",
-      created_at: new Date().toISOString(),
-    },
-    {
-      id: "3",
-      name: "Glycerol",
-      formula: "C3H8O3",
-      smiles: "C(C(CO)O)O",
-      pubchem_cid: "753",
-      created_at: new Date().toISOString(),
-    },
-    {
-      id: "4",
-      name: "Ethylene Glycol",
-      formula: "C2H6O2",
-      smiles: "C(CO)O",
-      pubchem_cid: "174",
-      created_at: new Date().toISOString(),
-    },
-    {
-      id: "5",
-      name: "Sucrose",
-      formula: "C12H22O11",
-      smiles: "C([C@@H]1[C@H]([C@@H]([C@H]([C@H](O1)O[C@]2([C@H]([C@@H]([C@@H](O2)CO)O)O)CO)O)O)O)O",
-      pubchem_cid: "5988",
-      created_at: new Date().toISOString(),
-    },
-    {
-      id: "6",
-      name: "Mannitol",
-      formula: "C6H14O6",
-      smiles: "C([C@H]([C@H]([C@@H]([C@H](CO)O)O)O)O)O",
-      pubchem_cid: "6251",
-      created_at: new Date().toISOString(),
-    },
-  ]
-
   useEffect(() => {
     loadMolecules()
     loadStats()
@@ -930,25 +264,22 @@ export default function MoleculesPage() {
       setLoading(true)
       setError(null)
 
-      // Use mock data for now
-      setTimeout(() => {
-        setMolecules(mockMolecules)
-        setTotal(mockMolecules.length)
-        setLoading(false)
-      }, 1000)
+      const offset = (currentPage - 1) * (filters.limit || 50)
+      const result = await searchMolecules({ ...filters, offset })
+
+      setMolecules(result.molecules)
+      setTotal(result.total)
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to load molecules")
+    } finally {
       setLoading(false)
     }
   }
 
   const loadStats = async () => {
     try {
-      // Mock stats
-      setStats({
-        total: mockMolecules.length,
-        withSmiles: mockMolecules.filter((m) => m.smiles).length,
-      })
+      const moleculeStats = await getMoleculeStats()
+      setStats(moleculeStats)
     } catch (err) {
       console.error("Failed to load stats:", err)
     }
@@ -974,21 +305,6 @@ export default function MoleculesPage() {
 
   const handleMoleculeAnalyze = (molecule: MoleculeType) => {
     console.log("Starting deep analysis for:", molecule.name)
-  }
-
-  const handleExplore = (molecule: MoleculeType) => {
-    setSelectedMolecule(molecule)
-    setIsDeepDiveOpen(true)
-  }
-
-  const handleAddToProtocol = (molecule: MoleculeType) => {
-    if (!protocolMolecules.find((m) => m.id === molecule.id)) {
-      setProtocolMolecules((prev) => [...prev, molecule])
-    }
-  }
-
-  const handleMoleculeSelect = (molecule: MoleculeType) => {
-    console.log("Selected molecule:", molecule.name)
   }
 
   // AI-powered insights
@@ -1288,9 +604,6 @@ export default function MoleculesPage() {
                             key={molecule.id}
                             molecule={molecule}
                             onAnalyze={handleMoleculeAnalyze}
-                            onExplore={handleExplore}
-                            onAddToProtocol={handleAddToProtocol}
-                            onSelect={handleMoleculeSelect}
                             viewMode={viewMode}
                           />
                         ))}
@@ -1304,9 +617,6 @@ export default function MoleculesPage() {
                             key={molecule.id}
                             molecule={molecule}
                             onAnalyze={handleMoleculeAnalyze}
-                            onExplore={handleExplore}
-                            onAddToProtocol={handleAddToProtocol}
-                            onSelect={handleMoleculeSelect}
                             viewMode={viewMode}
                           />
                         ))}
@@ -1320,9 +630,6 @@ export default function MoleculesPage() {
                             key={molecule.id}
                             molecule={molecule}
                             onAnalyze={handleMoleculeAnalyze}
-                            onExplore={handleExplore}
-                            onAddToProtocol={handleAddToProtocol}
-                            onSelect={handleMoleculeSelect}
                             viewMode={viewMode}
                           />
                         ))}
@@ -1438,14 +745,6 @@ export default function MoleculesPage() {
           </TabsContent>
         </Tabs>
       </div>
-
-      {/* Deep Dive Modal */}
-      <MoleculeDeepDive
-        molecule={selectedMolecule}
-        isOpen={isDeepDiveOpen}
-        onClose={() => setIsDeepDiveOpen(false)}
-        onAddToProtocol={handleAddToProtocol}
-      />
     </div>
   )
 }

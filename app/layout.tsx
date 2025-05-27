@@ -6,8 +6,9 @@ import "./globals.css"
 const inter = Inter({ subsets: ["latin"] })
 
 export const metadata: Metadata = {
-  title: "CryoProtect - AI-Powered Cryoprotectant Research Platform",
-  description: "Revolutionary platform for discovering and analyzing cryoprotectant molecules using AI",
+  title: "CryoProtect - AI-Powered Cryoprotectant Discovery Platform",
+  description:
+    "Transform cryoprotectant research with intelligent molecular discovery, AI predictions, and collaborative workflows.",
     generator: 'v0.dev'
 }
 

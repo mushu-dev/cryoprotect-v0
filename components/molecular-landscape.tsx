@@ -23,20 +23,14 @@ export function MolecularLandscape() {
       { name: "Natural extracts", color: "#8b5cf6", center: { x: 75, y: 35 } },
     ]
 
-    clusters.forEach((cluster) => {
+    clusters.forEach((cluster, clusterIndex) => {
       for (let i = 0; i < 50; i++) {
         const angle = Math.random() * 2 * Math.PI
         const radius = Math.random() * 15
         data.push({
           id: `${cluster.name}-${i}`,
-          efficacy: Math.max(
-            0,
-            Math.min(100, cluster.center.x + Math.cos(angle) * radius + (Math.random() - 0.5) * 10),
-          ),
-          toxicity: Math.max(
-            0,
-            Math.min(100, cluster.center.y + Math.sin(angle) * radius + (Math.random() - 0.5) * 10),
-          ),
+          efficacy: Math.max(0, Math.min(100, cluster.center.x + Math.cos(angle) * radius + (Math.random() - 0.5) * 10)),
+          toxicity: Math.max(0, Math.min(100, cluster.center.y + Math.sin(angle) * radius + (Math.random() - 0.5) * 10)),
           permeability: Math.random() * 100,
           novelty: Math.random() * 100,
           cluster: cluster.name,
@@ -58,44 +52,30 @@ export function MolecularLandscape() {
     { id: "novelty-efficacy", label: "Novelty vs Efficacy", x: "novelty", y: "efficacy" },
   ]
 
-  const currentView = viewModes.find((v) => v.id === viewMode) || viewModes[0]
+  const currentView = viewModes.find(v => v.id === viewMode) || viewModes[0]
 
-  const clusters = [...new Set(landscapeData.map((d) => d.cluster))]
+  const clusters = [...new Set(landscapeData.map(d => d.cluster))]
 
   useEffect(() => {
     if (isAnimating) {
       const interval = setInterval(() => {
-        setLandscapeData((prev) =>
-          prev.map((point) => ({
-            ...point,
-            efficacy: Math.max(0, Math.min(100, point.efficacy + (Math.random() - 0.5) * 2)),
-            toxicity: Math.max(0, Math.min(100, point.toxicity + (Math.random() - 0.5) * 2)),
-          })),
-        )
+        setLandscapeData(prev => prev.map(point => ({
+          ...point,
+          efficacy: Math.max(0, Math.min(100, point.efficacy + (Math.random() - 0.5) * 2)),
+          toxicity: Math.max(0, Math.min(100, point.toxicity + (Math.random() - 0.5) * 2)),
+        })))
       }, 1000)
       return () => clearInterval(interval)
     }
   }, [isAnimating])
 
-  const filteredData = selectedCluster ? landscapeData.filter((d) => d.cluster === selectedCluster) : landscapeData
-
-  const CustomTooltip = ({ active, payload }: any) => {
-    if (active && payload && payload.length) {
-      const data = payload[0].payload
-      return (
-        <div className="bg-white p-3 border rounded-lg shadow-lg">
-          <p className="font-medium">{data.cluster}</p>
-          <p className="text-sm">Efficacy: {data.efficacy.toFixed(1)}%</p>
-          <p className="text-sm">Toxicity: {data.toxicity.toFixed(1)}%</p>
-          <p className="text-sm">Confidence: {data.confidence.toFixed(1)}%</p>
-        </div>
-      )
-    }
-    return null
-  }
+  const filteredData = selectedCluster 
+    ? landscapeData.filter(d => d.cluster === selectedCluster)
+    : landscapeData
 
   return (
     <div className="space-y-8">
+      {/* Controls */}
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center">
@@ -125,7 +105,11 @@ export function MolecularLandscape() {
             </div>
 
             <div className="flex items-center space-x-2">
-              <Button variant="outline" size="sm" onClick={() => setIsAnimating(!isAnimating)}>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setIsAnimating(!isAnimating)}
+              >
                 {isAnimating ? <Pause className="w-4 h-4" /> : <Play className="w-4 h-4" />}
                 {isAnimating ? "Pause" : "Animate"}
               </Button>
@@ -143,6 +127,7 @@ export function MolecularLandscape() {
       </Card>
 
       <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
+        {/* Cluster Filter */}
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center text-lg">
@@ -161,11 +146,11 @@ export function MolecularLandscape() {
                 <div className="w-3 h-3 bg-gray-400 rounded-full mr-2"></div>
                 All Clusters ({landscapeData.length})
               </Button>
-
+              
               {clusters.map((cluster) => {
-                const clusterData = landscapeData.filter((d) => d.cluster === cluster)
+                const clusterData = landscapeData.filter(d => d.cluster === cluster)
                 const color = clusterData[0]?.color || "#gray"
-
+                
                 return (
                   <Button
                     key={cluster}
@@ -174,7 +159,10 @@ export function MolecularLandscape() {
                     className="w-full justify-start"
                     onClick={() => setSelectedCluster(cluster)}
                   >
-                    <div className="w-3 h-3 rounded-full mr-2" style={{ backgroundColor: color }}></div>
+                    <div 
+                      className="w-3 h-3 rounded-full mr-2"
+                      style={{ backgroundColor: color }}
+                    ></div>
                     {cluster} ({clusterData.length})
                   </Button>
                 )
@@ -185,17 +173,21 @@ export function MolecularLandscape() {
               <h4 className="font-medium mb-3">Cluster Insights</h4>
               <div className="space-y-2 text-sm">
                 <div className="flex justify-between">
-                  <span>High Efficacy ({">"}80%)</span>
-                  <span className="font-medium">{landscapeData.filter((d) => d.efficacy > 80).length}</span>
+                  <span>High Efficacy (>80%)</span>
+                  <span className="font-medium">
+                    {landscapeData.filter(d => d.efficacy > 80).length}
+                  </span>
                 </div>
                 <div className="flex justify-between">
-                  <span>Low Toxicity ({"<"}30%)</span>
-                  <span className="font-medium">{landscapeData.filter((d) => d.toxicity < 30).length}</span>
+                  <span>Low Toxicity (<30%)</span>
+                  <span className="font-medium">
+                    {landscapeData.filter(d => d.toxicity < 30).length}
+                  </span>
                 </div>
                 <div className="flex justify-between">
                   <span>Optimal Zone</span>
                   <span className="font-medium text-green-600">
-                    {landscapeData.filter((d) => d.efficacy > 70 && d.toxicity < 40).length}
+                    {landscapeData.filter(d => d.efficacy > 70 && d.toxicity < 40).length}
                   </span>
                 </div>
               </div>
@@ -203,13 +195,20 @@ export function MolecularLandscape() {
           </CardContent>
         </Card>
 
+        {/* Main Visualization */}
         <Card className="lg:col-span-3">
           <CardHeader>
             <CardTitle className="flex items-center justify-between">
               <span>{currentView.label} Landscape</span>
               <div className="flex items-center space-x-2">
-                <Badge variant="outline">{filteredData.length} molecules</Badge>
-                {isAnimating && <Badge variant="secondary">Live View</Badge>}
+                <Badge variant="outline">
+                  {filteredData.length} molecules
+                </Badge>
+                {isAnimating && (
+                  <Badge variant="secondary">
+                    Live View
+                  </Badge>
+                )}
               </div>
             </CardTitle>
           </CardHeader>
@@ -217,34 +216,45 @@ export function MolecularLandscape() {
             <ResponsiveContainer width="100%" height={500}>
               <ScatterChart data={filteredData}>
                 <CartesianGrid strokeDasharray="3 3" />
-                <XAxis
-                  type="number"
+                <XAxis 
+                  type="number" 
                   dataKey={currentView.x}
                   name={currentView.x}
                   domain={[0, 100]}
-                  label={{
-                    value: currentView.x.charAt(0).toUpperCase() + currentView.x.slice(1),
-                    position: "insideBottom",
-                    offset: -10,
-                  }}
+                  label={{ value: currentView.x.charAt(0).toUpperCase() + currentView.x.slice(1), position: 'insideBottom', offset: -10 }}
                 />
-                <YAxis
-                  type="number"
+                <YAxis 
+                  type="number" 
                   dataKey={currentView.y}
                   name={currentView.y}
                   domain={[0, 100]}
-                  label={{
-                    value: currentView.y.charAt(0).toUpperCase() + currentView.y.slice(1),
-                    angle: -90,
-                    position: "insideLeft",
-                  }}
+                  label={{ value: currentView.y.charAt(0).toUpperCase() + currentView.y.slice(1), angle: -90, position: 'insideLeft' }}
                 />
                 <ZAxis type="number" dataKey="size" range={[20, 200]} />
-                <Tooltip content={<CustomTooltip />} />
-                <Scatter dataKey={currentView.y} fill="#8884d8" />
+                <Tooltip 
+                  content={({ active, payload }) => {
+                    if (active && payload && payload.length) {
+                      const data = payload[0].payload
+                      return (
+                        <div className="bg-white p-3 border rounded-lg shadow-lg">
+                          <p className="font-medium">{data.cluster}</p>
+                          <p className="text-sm">Efficacy: {data.efficacy.toFixed(1)}%</p>
+                          <p className="text-sm">Toxicity: {data.toxicity.toFixed(1)}%</p>
+                          <p className="text-sm">Confidence: {data.confidence.toFixed(1)}%</p>
+                        </div>
+                      )
+                    }
+                    return null
+                  }}
+                />
+                <Scatter 
+                  dataKey={currentView.y} 
+                  fill="#8884d8"
+                />
               </ScatterChart>
             </ResponsiveContainer>
 
+            {/* Opportunity Zones */}
             <div className="mt-6 grid grid-cols-1 md:grid-cols-3 gap-4">
               <div className="p-4 bg-green-50 rounded-lg border border-green-200">
                 <div className="flex items-center space-x-2 mb-2">
@@ -252,8 +262,7 @@ export function MolecularLandscape() {
                   <h4 className="font-medium text-green-900">Optimal Zone</h4>
                 </div>
                 <p className="text-sm text-green-800">
-                  {landscapeData.filter((d) => d.efficacy > 70 && d.toxicity < 40).length} molecules with high efficacy
-                  and low toxicity
+                  {landscapeData.filter(d => d.efficacy > 70 && d.toxicity < 40).length} molecules with high efficacy and low toxicity
                 </p>
               </div>
 
@@ -263,8 +272,7 @@ export function MolecularLandscape() {
                   <h4 className="font-medium text-yellow-900">Improvement Opportunity</h4>
                 </div>
                 <p className="text-sm text-yellow-800">
-                  {landscapeData.filter((d) => d.efficacy > 60 && d.efficacy < 80 && d.toxicity > 30).length} molecules
-                  that could be optimized
+                  {landscapeData.filter(d => d.efficacy > 60 && d.efficacy < 80 && d.toxicity > 30).length} molecules that could be optimized
                 </p>
               </div>
 
@@ -273,7 +281,9 @@ export function MolecularLandscape() {
                   <Eye className="w-4 h-4 text-blue-600" />
                   <h4 className="font-medium text-blue-900">Unexplored Region</h4>
                 </div>
-                <p className="text-sm text-blue-800">Sparse areas suggest potential for novel molecule discovery</p>
+                <p className="text-sm text-blue-800">
+                  Sparse areas suggest potential for novel molecule discovery
+                </p>
               </div>
             </div>
           </CardContent>

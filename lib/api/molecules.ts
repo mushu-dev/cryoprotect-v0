@@ -204,14 +204,3 @@ export async function getAllMolecules() {
     throw error
   }
 }
-
-export type { MoleculeFilters }
-
-export async function getMolecules(filters: MoleculeFilters = {}) {
-  // Mock implementation
-  return {
-    data: [],
-    total: 0,
-    error: null,
-  }
-}
