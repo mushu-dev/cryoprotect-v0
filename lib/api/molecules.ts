@@ -1,184 +1,217 @@
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
-import { supabase } from "@/lib/supabase"
-import type { Molecule, MolecularProperty } from "@/types/models"
-import type { moleculeFormSchema, molecularPropertyFormSchema } from "@/types/schemas"
-import type { z } from "zod"
+import { supabase } from "../supabase"
+import type { Molecule } from "../supabase"
 
-// Query keys
-export const moleculeKeys = {
-  all: ["molecules"] as const,
-  lists: () => [...moleculeKeys.all, "list"] as const,
-  list: (filters: Record<string, any>) => [...moleculeKeys.lists(), filters] as const,
-  details: () => [...moleculeKeys.all, "detail"] as const,
-  detail: (id: string) => [...moleculeKeys.details(), id] as const,
-  properties: (moleculeId: string) => [...moleculeKeys.detail(moleculeId), "properties"] as const,
+export interface MoleculeFilters {
+  search?: string
+  pubchem_cid?: number
+  chembl_id?: string
+  has_smiles?: boolean
+  has_formula?: boolean
+  sortBy?: "name" | "pubchem_cid" | "created_at" | "updated_at"
+  sortOrder?: "asc" | "desc"
+  limit?: number
+  offset?: number
 }
 
-// Fetch molecules with optional filters
-export const useMolecules = (filters: Record<string, any> = {}) => {
-  return useQuery({
-    queryKey: moleculeKeys.list(filters),
-    queryFn: async () => {
-      let query = supabase.from("molecules").select("*")
+export async function searchMolecules(filters: MoleculeFilters = {}) {
+  try {
+    let query = supabase.from("molecules").select("*", { count: "exact" })
 
-      // Apply filters
-      Object.entries(filters).forEach(([key, value]) => {
-        if (value !== undefined && value !== null && value !== "") {
-          if (key === "name" || key === "formula") {
-            query = query.ilike(key, `%${value}%`)
-          } else {
-            query = query.eq(key, value)
-          }
-        }
-      })
+    // Apply search filter across multiple fields
+    if (filters.search) {
+      query = query.or(
+        `name.ilike.%${filters.search}%,formula.ilike.%${filters.search}%,smiles.ilike.%${filters.search}%,pubchem_cid.eq.${isNaN(Number(filters.search)) ? 0 : Number(filters.search)}`,
+      )
+    }
 
-      const { data, error } = await query.order("created_at", { ascending: false })
+    // Apply specific filters
+    if (filters.pubchem_cid) {
+      query = query.eq("pubchem_cid", filters.pubchem_cid)
+    }
 
-      if (error) throw error
-      return data as Molecule[]
-    },
-  })
+    if (filters.chembl_id) {
+      query = query.eq("chembl_id", filters.chembl_id)
+    }
+
+    if (filters.has_smiles) {
+      query = query.not("smiles", "is", null)
+    }
+
+    if (filters.has_formula) {
+      query = query.not("formula", "is", null)
+    }
+
+    // Apply sorting
+    if (filters.sortBy) {
+      query = query.order(filters.sortBy, { ascending: filters.sortOrder === "asc" })
+    } else {
+      query = query.order("created_at", { ascending: false })
+    }
+
+    // Apply pagination - handle large datasets
+    if (filters.limit && filters.limit < 1000) {
+      query = query.limit(filters.limit)
+    }
+
+    if (filters.offset) {
+      query = query.range(filters.offset, filters.offset + (filters.limit || 50) - 1)
+    }
+
+    const { data, error, count } = await query
+
+    if (error) {
+      throw new Error(`Failed to search molecules: ${error.message}`)
+    }
+
+    return { molecules: data || [], total: count || 0 }
+  } catch (error) {
+    console.error("Search molecules error:", error)
+    throw error
+  }
 }
 
-// Fetch a single molecule by ID
-export const useMolecule = (id: string) => {
-  return useQuery({
-    queryKey: moleculeKeys.detail(id),
-    queryFn: async () => {
-      const { data, error } = await supabase.from("molecules").select("*").eq("id", id).single()
+export async function getMoleculeById(id: string) {
+  try {
+    const { data, error } = await supabase.from("molecules").select("*").eq("id", id).single()
 
-      if (error) throw error
-      return data as Molecule
-    },
-    enabled: !!id,
-  })
+    if (error) {
+      throw new Error(`Failed to get molecule: ${error.message}`)
+    }
+
+    return data
+  } catch (error) {
+    console.error("Get molecule error:", error)
+    throw error
+  }
 }
 
-// Fetch molecular properties for a molecule
-export const useMoleculeProperties = (moleculeId: string) => {
-  return useQuery({
-    queryKey: moleculeKeys.properties(moleculeId),
-    queryFn: async () => {
-      const { data, error } = await supabase.from("molecular_properties").select("*").eq("molecule_id", moleculeId)
+export async function getMoleculeByPubchemId(pubchem_cid: number) {
+  try {
+    const { data, error } = await supabase.from("molecules").select("*").eq("pubchem_cid", pubchem_cid).single()
 
-      if (error) throw error
-      return data as MolecularProperty[]
-    },
-    enabled: !!moleculeId,
-  })
+    if (error) {
+      throw new Error(`Failed to get molecule by PubChem ID: ${error.message}`)
+    }
+
+    return data
+  } catch (error) {
+    console.error("Get molecule by PubChem ID error:", error)
+    throw error
+  }
 }
 
-// Create a new molecule
-export const useCreateMolecule = () => {
-  const queryClient = useQueryClient()
+export async function createMolecule(molecule: Omit<Molecule, "id" | "created_at" | "updated_at">) {
+  try {
+    const { data, error } = await supabase.from("molecules").insert([molecule]).select().single()
 
-  return useMutation({
-    mutationFn: async (newMolecule: z.infer<typeof moleculeFormSchema>) => {
-      const { data, error } = await supabase.from("molecules").insert(newMolecule).select().single()
+    if (error) {
+      throw new Error(`Failed to create molecule: ${error.message}`)
+    }
 
-      if (error) throw error
-      return data as Molecule
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: moleculeKeys.lists() })
-    },
-  })
+    return data
+  } catch (error) {
+    console.error("Create molecule error:", error)
+    throw error
+  }
 }
 
-// Update a molecule
-export const useUpdateMolecule = (id: string) => {
-  const queryClient = useQueryClient()
+export async function updateMolecule(id: string, updates: Partial<Molecule>) {
+  try {
+    const { data, error } = await supabase
+      .from("molecules")
+      .update({ ...updates, updated_at: new Date().toISOString() })
+      .eq("id", id)
+      .select()
+      .single()
 
-  return useMutation({
-    mutationFn: async (updatedMolecule: Partial<z.infer<typeof moleculeFormSchema>>) => {
-      const { data, error } = await supabase.from("molecules").update(updatedMolecule).eq("id", id).select().single()
+    if (error) {
+      throw new Error(`Failed to update molecule: ${error.message}`)
+    }
 
-      if (error) throw error
-      return data as Molecule
-    },
-    onSuccess: (data) => {
-      queryClient.invalidateQueries({ queryKey: moleculeKeys.detail(id) })
-      queryClient.invalidateQueries({ queryKey: moleculeKeys.lists() })
-    },
-  })
+    return data
+  } catch (error) {
+    console.error("Update molecule error:", error)
+    throw error
+  }
 }
 
-// Delete a molecule
-export const useDeleteMolecule = () => {
-  const queryClient = useQueryClient()
+export async function deleteMolecule(id: string) {
+  try {
+    const { error } = await supabase.from("molecules").delete().eq("id", id)
 
-  return useMutation({
-    mutationFn: async (id: string) => {
-      const { error } = await supabase.from("molecules").delete().eq("id", id)
-
-      if (error) throw error
-      return id
-    },
-    onSuccess: (id) => {
-      queryClient.invalidateQueries({ queryKey: moleculeKeys.lists() })
-      queryClient.removeQueries({ queryKey: moleculeKeys.detail(id) })
-    },
-  })
+    if (error) {
+      throw new Error(`Failed to delete molecule: ${error.message}`)
+    }
+  } catch (error) {
+    console.error("Delete molecule error:", error)
+    throw error
+  }
 }
 
-// Create a molecular property
-export const useCreateMolecularProperty = () => {
-  const queryClient = useQueryClient()
+export async function getMoleculeStats() {
+  try {
+    const { data, error } = await supabase.from("molecules").select("id, pubchem_cid, smiles, formula")
 
-  return useMutation({
-    mutationFn: async (newProperty: z.infer<typeof molecularPropertyFormSchema>) => {
-      const { data, error } = await supabase.from("molecular_properties").insert(newProperty).select().single()
+    if (error) {
+      throw new Error(`Failed to get molecule stats: ${error.message}`)
+    }
 
-      if (error) throw error
-      return data as MolecularProperty
-    },
-    onSuccess: (data) => {
-      queryClient.invalidateQueries({
-        queryKey: moleculeKeys.properties(data.molecule_id),
-      })
-    },
-  })
+    const stats = {
+      total: data?.length || 0,
+      withPubchemId: data?.filter((m) => m.pubchem_cid).length || 0,
+      withSmiles: data?.filter((m) => m.smiles).length || 0,
+      withFormula: data?.filter((m) => m.formula).length || 0,
+    }
+
+    return stats
+  } catch (error) {
+    console.error("Get molecule stats error:", error)
+    throw error
+  }
 }
 
-// Update a molecular property
-export const useUpdateMolecularProperty = (id: string, moleculeId: string) => {
-  const queryClient = useQueryClient()
+export async function searchSimilarMolecules(smiles: string, limit = 10) {
+  try {
+    // For now, we'll do a simple search based on similar SMILES patterns
+    // In a real implementation, you'd use chemical similarity algorithms
+    const { data, error } = await supabase.from("molecules").select("*").not("smiles", "is", null).limit(limit)
 
-  return useMutation({
-    mutationFn: async (updatedProperty: Partial<z.infer<typeof molecularPropertyFormSchema>>) => {
-      const { data, error } = await supabase
-        .from("molecular_properties")
-        .update(updatedProperty)
-        .eq("id", id)
-        .select()
-        .single()
+    if (error) {
+      throw new Error(`Failed to search similar molecules: ${error.message}`)
+    }
 
-      if (error) throw error
-      return data as MolecularProperty
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({
-        queryKey: moleculeKeys.properties(moleculeId),
-      })
-    },
-  })
+    return data || []
+  } catch (error) {
+    console.error("Search similar molecules error:", error)
+    throw error
+  }
 }
 
-// Delete a molecular property
-export const useDeleteMolecularProperty = (moleculeId: string) => {
-  const queryClient = useQueryClient()
+export async function getAllMolecules() {
+  try {
+    const { data, error, count } = await supabase
+      .from("molecules")
+      .select("*", { count: "exact" })
+      .order("created_at", { ascending: false })
 
-  return useMutation({
-    mutationFn: async (id: string) => {
-      const { error } = await supabase.from("molecular_properties").delete().eq("id", id)
+    if (error) {
+      throw new Error(`Failed to get all molecules: ${error.message}`)
+    }
 
-      if (error) throw error
-      return id
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({
-        queryKey: moleculeKeys.properties(moleculeId),
-      })
-    },
-  })
+    return { molecules: data || [], total: count || 0 }
+  } catch (error) {
+    console.error("Get all molecules error:", error)
+    throw error
+  }
+}
+
+export type { MoleculeFilters }
+
+export async function getMolecules(filters: MoleculeFilters = {}) {
+  // Mock implementation
+  return {
+    data: [],
+    total: 0,
+    error: null,
+  }
 }

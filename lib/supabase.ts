@@ -1,7 +1,38 @@
-import { createClient } from "@supabase/supabase-js"
-import type { Database } from "@/types/database.types"
+export interface Molecule {
+  id: string
+  name: string
+  formula: string
+  smiles?: string
+  pubchem_cid?: string
+  created_at: string
+}
 
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL as string
-const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY as string
+export interface MoleculeFilters {
+  limit?: number
+  offset?: number
+  search?: string
+  sortBy?: string
+  sortOrder?: "asc" | "desc"
+}
 
-export const supabase = createClient<Database>(supabaseUrl, supabaseAnonKey)
+// Mock implementation for now
+export const supabase = {
+  from: (table: string) => ({
+    select: () => ({
+      data: [],
+      error: null,
+    }),
+    insert: () => ({
+      data: [],
+      error: null,
+    }),
+    update: () => ({
+      data: [],
+      error: null,
+    }),
+    delete: () => ({
+      data: [],
+      error: null,
+    }),
+  }),
+}
